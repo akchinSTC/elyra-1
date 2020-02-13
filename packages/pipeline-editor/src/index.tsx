@@ -407,7 +407,7 @@ class Pipeline extends React.Component<Pipeline.Props, Pipeline.State> {
         let pipelineFlow = this.canvasController.getPipelineFlow();
         pipelineFlow.pipelines[0]['app_data']['title'] = result.value.pipeline_name;
         // TODO: Be more flexible and remove hardcoded runtime type
-        pipelineFlow.pipelines[0]['app_data']['runtime'] = 'kfp';
+        pipelineFlow.pipelines[0]['app_data']['runtime'] = 'airflow';
         pipelineFlow.pipelines[0]['app_data']['runtime-config'] = result.value.runtime_config;
 
         SubmissionHandler.submitPipeline(pipelineFlow, result.value.runtime_config, 'pipeline');

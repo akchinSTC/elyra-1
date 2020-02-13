@@ -46,7 +46,9 @@ setup_args = dict(
         "jupyter_core>=4.0,<5.0",
         "kfp==0.2.0",
         "kfp-notebook>=0.5.0",
+        "apache-airflow==1.10.7",
         "minio>=5.0.7",
+        'ipywidgets',
         'jupyterlab>=1.0.0,<2.0.0',
         'jupyterlab-git',
         'nbconvert>=5.6.1',
@@ -74,7 +76,8 @@ setup_args = dict(
             'jupyter-runtimes = elyra.metadata.runtime:RuntimeMetadataApp.launch_instance',
         ],
         'elyra.pipeline.processors': [
-            'kfp = elyra.pipeline.processor_kfp:KfpPipelineProcessor'
+            'kfp = elyra.pipeline.processor_kfp:KfpPipelineProcessor',
+            'airflow = elyra.pipeline.processor_airflow:AirflowPipelineProcessor',
         ]
     },
 )
