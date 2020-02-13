@@ -54,7 +54,7 @@ class PipelineProcessorManager(SingletonConfigurable):
         processor = registry.get_processor(processor_type)
 
         if not processor:
-            raise RuntimeError('Could not find pipeline processor for [{}]'.format(pipeline.plataform))
+            raise RuntimeError('Could not find pipeline processor for [{}]'.format(pipeline.platform))
 
         return processor.process(pipeline)
 

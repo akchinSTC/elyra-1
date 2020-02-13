@@ -484,7 +484,7 @@ class Pipeline extends React.Component<Pipeline.IProps, Pipeline.IState> {
           pipelineFlow.pipelines[0]['app_data']['title'] =
             result.value.pipeline_name;
           // TODO: Be more flexible and remove hardcoded runtime type
-          pipelineFlow.pipelines[0]['app_data']['runtime'] = 'kfp';
+          pipelineFlow.pipelines[0]['app_data']['runtime'] = 'airflow'; // HARDCODED
           pipelineFlow.pipelines[0]['app_data']['runtime-config'] =
             result.value.runtime_config;
 
