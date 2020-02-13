@@ -73,7 +73,7 @@ npm-packages: lerna-build
 bdist: npm-packages
 	python setup.py bdist_wheel
 
-install: bdist lint ## Build distribution and install
+install: bdist  ## Build distribution and install
 	pip install --upgrade dist/elyra-*-py3-none-any.whl
 	$(call UNLINK_LAB_EXTENSION,application)
 	$(call UNINSTALL_LAB_EXTENSION,notebook-scheduler-extension)

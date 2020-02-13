@@ -22,7 +22,7 @@ from traitlets import Instance, Dict, Unicode, Bool
 from elyra._version import __version__
 
 
-SUPPORTED_TYPES = ['kfp']
+SUPPORTED_TYPES = ['kfp', 'airflow']
 
 
 class Runtime(Metadata):
@@ -218,9 +218,10 @@ class Kfp(Application, AppUtilMixin):
 class Airflow(Application, AppUtilMixin):
     version = __version__
     description = """Install runtime metadata for Airflow pipelines."""
-    flags = {}
 
     schema_name = "airflow"
+
+    replace = Bool(False, help='Replace existing runtime metadata with this instance.', config=True)
 
     name = Unicode(config=True,
                    help='The canonical name of this airflow runtime.  Only alpha-numeric, - and _ are permitted.')
@@ -228,13 +229,81 @@ class Airflow(Application, AppUtilMixin):
     display_name = Unicode(config=True,
                            help='The display name of this airflow runtime.')
 
+    api_endpoint = Unicode(None, config=True, allow_none=True,
+                           help="The http url specifying the API endpoint corresponding to this airflow runtime.")
+
+    cos_endpoint = Unicode(None, config=True, allow_none=True,
+                           help="The http url specifying the COS endpoint corresponding to this airflow runtime.")
+
+    cos_bucket = Unicode(None, config=True, allow_none=True,
+                         help="The COS bucket name corresponding to this airflow runtime.")
+
+    cos_username = Unicode(None, config=True, allow_none=True,
+                           help="The COS username corresponding to this airflow runtime.")
+
+    cos_password = Unicode(None, config=True, allow_none=True,  # FIXME - password!
+                           help="The COS user password corresponding to this airflow runtime.")
+
+    metadata_namespace = Runtime.namespace
+    metadata_manager = Instance(MetadataManager)
+
+    flags = {'replace': ({'Airflow': {'replace': True}}, "Replace existing runtime metadata with this instance."),
+             'debug': base_flags['debug'],
+             }
+
+    def _metadata_manager_default(self):
+        return MetadataManager(namespace=self.metadata_namespace)
+
     aliases = {
         'name': 'Airflow.name',
         'display_name': 'Airflow.display_name',
+        'api_endpoint': 'Airflow.api_endpoint',
+        'cos_endpoint': 'Airflow.cos_endpoint',
+        'cos_username': 'Airflow.cos_username',
+        'cos_password': 'Airflow.cos_password',
+        'cos_bucket': 'Airflow.cos_bucket',
     }
 
     def start(self):
-        self._log_and_exit("Support for airflow pipelines is not implemented at this time.")
+        self._validate_parameters()
+
+        # init with required, conditionally add optional  # TODO - drive from metadata?  Will need better
+        metadata = dict(
+            api_endpoint=self.api_endpoint,
+            cos_endpoint=self.cos_endpoint,
+            cos_bucket=self.cos_bucket)
+
+        if self.cos_username:
+            metadata['cos_username'] = self.cos_username
+        if self.cos_password:
+            metadata['cos_password'] = self.cos_password
+
+        runtime = Runtime(schema_name=self.schema_name, name=self.name,
+                          display_name=self.display_name, metadata=metadata)
+
+        ex_msg = None
+        resource = None
+        try:
+            resource = self.metadata_manager.add(self.name, runtime, replace=self.replace)
+        except Exception as ex:
+            ex_msg = str(ex)
+
+        if resource:
+            print("Metadata for {} runtime '{}' has been written to: {}".format(self.schema_name, self.name, resource))
+        else:
+            if ex_msg:
+                self._log_and_exit("The following exception occurred while saving metadata '{}' for {} runtime: {}"
+                                   .format(self.name, self.schema_name, ex_msg), display_help=True)
+            else:
+                self._log_and_exit("A failure occurred while saving metadata '{}' for {} runtime.  Check log output."
+                                   .format(self.name, self.schema_name), display_help=True)
+
+    def _validate_parameters(self):
+        self._confirm_required("name", self.name)
+        self._confirm_required("display_name", self.display_name)
+        self._confirm_required("api_endpoint", self.api_endpoint)
+        self._confirm_required("cos_endpoint", self.cos_endpoint)
+        self._confirm_required("cos_bucket", self.cos_bucket)
 
 
 class InstallRuntime(Application):
