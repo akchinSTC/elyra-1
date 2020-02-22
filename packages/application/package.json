@@ -35,11 +35,11 @@
     "watch": "tsc -w"
   },
   "dependencies": {
-    "@jupyterlab/application": "^2.0.0-rc.0",
-    "@jupyterlab/apputils": "^2.0.0-rc.0",
-    "@jupyterlab/coreutils": "^4.0.0-rc.0",
-    "@jupyterlab/services": "^5.0.0-rc.0",
-    "@jupyterlab/ui-components": "^2.0.0-rc.0"
+    "@jupyterlab/application": "^2.0.0-rc.1",
+    "@jupyterlab/apputils": "^2.0.0-rc.1",
+    "@jupyterlab/coreutils": "^4.0.0-rc.1",
+    "@jupyterlab/services": "^5.0.0-rc.1",
+    "@jupyterlab/ui-components": "^2.0.0-rc.1"
   },
   "devDependencies": {
     "rimraf": "~3.0.0",

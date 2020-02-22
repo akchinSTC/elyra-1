@@ -118,7 +118,7 @@ export class PythonFileEditor extends DocumentWidget<FileEditor, DocumentRegistr
     this.outputAreaWidget.title.label = 'Python Console Output';
     this.outputAreaWidget.title.closable = true;
 
-    const layout = this.layout as unknown as BoxLayout;
+    const layout = this.layout as BoxLayout;
     // TODO: Investigate SplitLayout instead of BoxLayout, for layout resizing functionality
     // const layout = this.layout as SplitLayout;
     layout.addWidget(this.dockPanel);
