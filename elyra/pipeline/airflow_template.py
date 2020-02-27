@@ -1,24 +1,9 @@
-#
-# Copyright 2018-2019 IBM Corporation
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-# http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-#
 import json
 import airflow
 from datetime import timedelta
 from airflow import DAG
 from airflow.utils import dates
-from airflow.operators.python_operator import BranchPythonOperator
+from airflow.operators.python_operator import PythonOperator
 from notebook_op import NotebookOp
 
 
@@ -91,11 +76,10 @@ mydag = DAG(dag_id="elyra",
 message = "{{ dag_run.conf['message']}}"
 
 # Python Operator to kick off the subdag / sub pipeline used to construct the actual graph
-run_this = BranchPythonOperator(
+run_this = PythonOperator(
     task_id='run_this',
     python_callable=construct_subdag,  # calls the local function
     templates_dict={'message': message},
-    op_kwargs={'use_dag': mydag},
     dag=mydag,
     provide_context=True,
 )
