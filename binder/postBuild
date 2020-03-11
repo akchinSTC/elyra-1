@@ -1,4 +1,4 @@
 #!/bin/bash
 
-apt install yarn
+curl -o- -L https://yarnpkg.com/install.sh | bash
 make clean install
