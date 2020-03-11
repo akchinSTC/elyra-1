@@ -1,3 +1,5 @@
-set -ex
+#!/bin/bash
 
 jupyter lab build
+jupyter labextension list
+jupyter serverextension list
