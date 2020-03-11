@@ -4,4 +4,4 @@ wget https://yarnpkg.com/latest.tar.gz
 tar -zvxf latest.tar.gz
 
 export PATH=$(pwd)/yarn-v1.22.4/bin/:$PATH
-make clean install
+make install
