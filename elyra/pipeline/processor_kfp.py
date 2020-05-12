@@ -26,9 +26,9 @@ from elyra.pipeline import PipelineProcessor
 from elyra.util.archive import create_temp_archive
 from elyra.util.cos import CosClient
 from kubernetes.client.models import V1EnvVar
-from kubernetes.client.models.v1_empty_dir_volume_source import V1EmptyDirVolumeSource
-from kubernetes.client.models.v1_volume_mount import V1VolumeMount
-from kubernetes.client.models.v1_volume import V1Volume
+# from kubernetes.client.models.v1_empty_dir_volume_source import V1EmptyDirVolumeSource
+# from kubernetes.client.models.v1_volume_mount import V1VolumeMount
+# from kubernetes.client.models.v1_volume import V1Volume
 from notebook.pipeline import NotebookOp
 from urllib3.exceptions import MaxRetryError
 from jinja2 import Environment, PackageLoader
@@ -201,7 +201,7 @@ class KfpPipelineProcessor(PipelineProcessor):
             notebook_op.container.add_env_variable(V1EnvVar(name='AWS_ACCESS_KEY_ID', value=cos_username))
             notebook_op.container.add_env_variable(V1EnvVar(name='AWS_SECRET_ACCESS_KEY', value=cos_password))
             # Option 1
-            notebook_op.add_pvolumes({"/mnt", bootstrap_volume.volume})
+            notebook_op.add_pvolumes({"/mnt": bootstrap_volume.volume})
             # Option 2
             # notebook_op.container.add_volume_mount(vol_mount.volume)
 
