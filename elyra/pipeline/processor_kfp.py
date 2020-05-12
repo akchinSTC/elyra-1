@@ -26,6 +26,9 @@ from elyra.pipeline import PipelineProcessor
 from elyra.util.archive import create_temp_archive
 from elyra.util.cos import CosClient
 from kubernetes.client.models import V1EnvVar
+from kubernetes.client.models.v1_empty_dir_volume_source import V1EmptyDirVolumeSource
+from kubernetes.client.models.v1_volume_mount import V1VolumeMount
+from kubernetes.client.models.v1_volume import V1Volume
 from notebook.pipeline import NotebookOp
 from urllib3.exceptions import MaxRetryError
 from jinja2 import Environment, PackageLoader
@@ -141,6 +144,24 @@ class KfpPipelineProcessor(PipelineProcessor):
                     pipeline_child_operation.inputs = \
                         pipeline_child_operation.inputs + pipeline_parent_operation.outputs
 
+        # Option #1 - Use dsl to create PVC with bootscript and mount to all notebook nodes
+        # side effect that PVC are not being cleaned up post run
+        bootstrap_volume = kfp.dsl.VolumeOp(
+            name="bootstrap_pvc",
+            resource_name="bootstrap_pvc",
+            size="1Gi",
+            modes=["ReadWriteMany"]
+        )
+
+        # Option #2 - Use emptydir to manage cleanup/garbage collection
+        # vol_source = V1EmptyDirVolumeSource(medium="",
+        #                                     size_limit="1Gi")
+        # vol = V1Volume(empty_dir=vol_source,
+        #                name="test")
+        # vol_mount = V1VolumeMount(mount_path="/mnt", name=vol)
+
+        notebook_ops['bootstrap_pvc'] = bootstrap_volume
+
         for operation in pipeline.operations.values():
             operation_artifact_archive = self._get_dependency_archive_name(operation)
 
@@ -179,6 +200,10 @@ class KfpPipelineProcessor(PipelineProcessor):
 
             notebook_op.container.add_env_variable(V1EnvVar(name='AWS_ACCESS_KEY_ID', value=cos_username))
             notebook_op.container.add_env_variable(V1EnvVar(name='AWS_SECRET_ACCESS_KEY', value=cos_password))
+            # Option 1
+            notebook_op.add_pvolumes({"/mnt", bootstrap_volume.volume})
+            # Option 2
+            # notebook_op.container.add_volume_mount(vol_mount.volume)
 
             # Set ENV variables
             if operation.vars:
