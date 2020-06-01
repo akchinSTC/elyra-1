@@ -30,4 +30,4 @@ make release
 pip install dist/*.whl
 
 # Rebuild Jupyter Lab to enable extensions
-jupyter lab build
+jupyter lab build --dev-build=False --minimize=False
