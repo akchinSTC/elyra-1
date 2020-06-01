@@ -65,7 +65,7 @@ lint-server: test-dependencies
 
 lint-ui:
 	yarn run prettier
-	yarn run eslint
+#	yarn run eslint
 
 lint: lint-ui lint-server ## Run linters
 
