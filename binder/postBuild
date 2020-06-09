@@ -38,5 +38,11 @@ jupyter labextension link --no-build packages/ui-components/
 jupyter lab build --dev-build=False --minimize=False
 mkdir -p binder-demo
 
-# Add Elyra tour assets
-cp binder/tour/* binder-demo/
+# Add Elyra getting started assets
+cp binder/getting-started/* binder-demo/
+
+# pre-define code snippets
+DATA_DIR=`jupyter --data-dir`
+CODE_SNIPPETS_DIR="$DATA_DIR/metadata/code-snippets"
+mkdir -p $CODE_SNIPPETS_DIR
+cp binder/getting-started/code-snippets/* $CODE_SNIPPETS_DIR
