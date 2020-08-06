@@ -28,6 +28,7 @@ from elyra.util.cos import CosClient
 from kfp_notebook.pipeline import NotebookOp
 from urllib3.exceptions import MaxRetryError
 from jinja2 import Environment, PackageLoader
+from kubernetes import client as k8s_client
 
 
 class KfpPipelineProcessor(PipelineProcessor):
@@ -181,10 +182,15 @@ class KfpPipelineProcessor(PipelineProcessor):
                     operation.inputs = parent_io
 
         for operation in pipeline.operations.values():
+
             operation_artifact_archive = self._get_dependency_archive_name(operation)
 
             self.log.debug("Creating pipeline component :\n {op} archive : {archive}".format(
                            op=operation, archive=operation_artifact_archive))
+
+            persistent_volume_path = '/mnt/jupyter-work-dir'
+            persistent_volume_name = 'workspace'
+            persistent_volume_size_limit = '20Gi'
 
             # Collect env variables
             pipeline_envs = dict()
@@ -210,7 +216,15 @@ class KfpPipelineProcessor(PipelineProcessor):
                                                     pipeline_inputs=operation.inputs,
                                                     pipeline_outputs=operation.outputs,
                                                     pipeline_envs=pipeline_envs,
-                                                    image=operation.runtime_image)
+                                                    image=operation.runtime_image).add_volume(k8s_client.V1Volume(
+                                                        empty_dir=k8s_client.V1EmptyDirVolumeSource(
+                                                            medium="",
+                                                            size_limit=persistent_volume_size_limit,
+                                                        ),
+                                                        name=persistent_volume_name)).add_volume_mount(
+                                                        k8s_client.V1VolumeMount(
+                                                            mount_path=persistent_volume_path,
+                                                            name=persistent_volume_name))
 
             self.log.info("NotebookOp Created for Component '%s' (%s)", operation.name, operation.id)
 
