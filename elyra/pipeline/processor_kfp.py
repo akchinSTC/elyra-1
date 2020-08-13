@@ -160,6 +160,7 @@ class KfpPipelineProcessor(PipelineProcessor):
         cos_password = runtime_configuration.metadata['cos_password']
         cos_directory = pipeline_name
         cos_bucket = runtime_configuration.metadata['cos_bucket']
+
         crio_emptydir_volume_size = ''
         crio_container_runtime = True
 
@@ -190,6 +191,7 @@ class KfpPipelineProcessor(PipelineProcessor):
                            op=operation, archive=operation_artifact_archive))
 
             if crio_container_runtime:
+                # Volume size to create when using CRI-o, NOTE: IBM Cloud minimum is 20Gi
                 crio_emptydir_volume_size = '20Gi'
 
             # Collect env variables
