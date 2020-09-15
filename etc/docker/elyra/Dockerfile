@@ -14,6 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+ARG UPGRADE_STRATEGY=only-if-needed
 
 # Ubuntu 18.04 LTS - Bionic
 FROM jupyterhub/k8s-singleuser-sample:0.9.0
@@ -30,17 +31,19 @@ RUN chmod ugo+x /usr/local/bin/start-elyra.sh && \
     rm -rf /var/lib/apt/lists/*
 
 USER $NB_USER
+ENV UPGRADE_STRATEGY=$UPGRADE_STRATEGY
 
 RUN python -m pip install --upgrade pip && \
     python -m pip install --ignore-installed --upgrade setuptools && \
-    python -m pip install --upgrade pandas numpy papermill nbclient jupyter-client notebook  && \
     echo "scripts-prepend-node-path=true" >> /home/jovyan/.npmrc && \
     echo "prefix=/home/jovyan/.npm-global" >> /home/jovyan/.npmrc && \
     mkdir -p /home/jovyan/.npm-global && \
     npm install -g yarn && \
     npm install -g npm && \
-    cd /tmp && git clone https://github.com/elyra-ai/elyra.git && \
-    cd /tmp/elyra && make install
+    cd /tmp && git clone https://github.com/lresende/elyra.git && \
+    cd /tmp/elyra && git checkout origin/fix-docker-kernel-manager-class && make install && \
+    cd /tmp && git clone https://github.com/elyra-ai/kfp-notebook.git && \
+    cd /tmp/kfp-notebook && make install
 
 WORKDIR /home/jovyan/work
 
