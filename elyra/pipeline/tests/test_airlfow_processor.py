@@ -43,7 +43,7 @@ def parsed_pipeline():
 
 
 @pytest.fixture
-def test_metadata():
+def sample_metadata():
     return {"github_repo": "examples/test-repo",
             "github_repo_token": "c564d8dfgdsfgdfgdsfgdsfgdfsgdfsgdsfgdsfg",
             "github_branch": "main",
@@ -57,7 +57,7 @@ def test_metadata():
 
 
 @pytest.fixture
-def test_image_metadata():
+def sample_image_metadata():
     image_one = {"image_name": 'tensorflow/tensorflow:2.0.0-py3',
                  "pull_policy": 'IfNotPresent',
                  "tags": []
@@ -84,12 +84,12 @@ def test_image_metadata():
 
 @pytest.fixture
 def parsed_ordered_dict(monkeypatch, processor, parsed_pipeline,
-                        test_metadata, test_image_metadata):
+                        sample_metadata, test_image_metadata):
 
     mocked_runtime = Metadata(name="test-metadata",
                               display_name="test",
                               schema_name="airflow",
-                              metadata=test_metadata
+                              metadata=sample_metadata
                               )
 
     mocked_func = mock.Mock(return_value="default", side_effect=[mocked_runtime, test_image_metadata])
@@ -110,12 +110,12 @@ def test_fail_processor_type(processor):
         assert processor.type == "kfp"
 
 
-def test_pipeline_process(monkeypatch, processor, parsed_pipeline, test_metadata):
+def test_pipeline_process(monkeypatch, processor, parsed_pipeline, sample_metadata):
 
     mocked_runtime = Metadata(name="test-metadata",
                               display_name="test",
                               schema_name="airflow",
-                              metadata=test_metadata
+                              metadata=sample_metadata
                               )
     mocked_path = "/some-placeholder"
 
@@ -128,13 +128,13 @@ def test_pipeline_process(monkeypatch, processor, parsed_pipeline, test_metadata
 
     response = processor.process(pipeline=parsed_pipeline)
 
-    assert response.run_url == test_metadata['api_endpoint']
-    assert response.object_storage_url == test_metadata['cos_endpoint']
+    assert response.run_url == sample_metadata['api_endpoint']
+    assert response.object_storage_url == sample_metadata['cos_endpoint']
     # Verifies that only this substring is in the storage path since a timestamp is injected into the name
-    assert "/" + test_metadata['cos_bucket'] + "/" + "untitled" in response.object_storage_path
+    assert "/" + sample_metadata['cos_bucket'] + "/" + "untitled" in response.object_storage_path
 
 
-def test_create_file(monkeypatch, processor, parsed_pipeline, parsed_ordered_dict, test_metadata):
+def test_create_file(monkeypatch, processor, parsed_pipeline, parsed_ordered_dict, sample_metadata):
     correct_hash_value = 'a2ec9f9f7f4d191540d2967a1db8dcec4c6c7c6c0b2c801237d4d23982f9fc3c'
 
     export_pipeline_name = "some-name"
@@ -143,7 +143,7 @@ def test_create_file(monkeypatch, processor, parsed_pipeline, parsed_ordered_dic
     mocked_runtime = Metadata(name="test-metadata",
                               display_name="test",
                               schema_name="airflow",
-                              metadata=test_metadata
+                              metadata=sample_metadata
                               )
 
     monkeypatch.setattr(processor, "_get_metadata_configuration", lambda name=None, namespace=None: mocked_runtime)
@@ -189,7 +189,7 @@ def test_fail_export_overwrite(processor, parsed_pipeline):
             processor.export(parsed_pipeline, "py", export_pipeline_output_path, False)
 
 
-def test_pipeline_tree_creation(parsed_ordered_dict, test_metadata, test_image_metadata):
+def test_pipeline_tree_creation(parsed_ordered_dict, sample_metadata, test_image_metadata):
     pipeline_json = _read_pipeline_resource(PIPELINE_FILE)
 
     ordered_dict = parsed_ordered_dict
@@ -228,8 +228,8 @@ def test_pipeline_tree_creation(parsed_ordered_dict, test_metadata, test_image_m
                 for env in node['app_data']['env_vars']:
                     var, value = env.split("=")
                     assert ordered_dict[key]['pipeline_envs'][var] == value
-                assert ordered_dict[key]['cos_endpoint'] == test_metadata['cos_endpoint']
-                assert ordered_dict[key]['cos_bucket'] == test_metadata['cos_bucket']
-                assert ordered_dict[key]['pipeline_envs']['AWS_ACCESS_KEY_ID'] == test_metadata['cos_username']
-                assert ordered_dict[key]['pipeline_envs']['AWS_SECRET_ACCESS_KEY'] == test_metadata['cos_password']
+                assert ordered_dict[key]['cos_endpoint'] == sample_metadata['cos_endpoint']
+                assert ordered_dict[key]['cos_bucket'] == sample_metadata['cos_bucket']
+                assert ordered_dict[key]['pipeline_envs']['AWS_ACCESS_KEY_ID'] == sample_metadata['cos_username']
+                assert ordered_dict[key]['pipeline_envs']['AWS_SECRET_ACCESS_KEY'] == sample_metadata['cos_password']
                 # TODO: Test for pipeline inputs and outputs
