@@ -29,6 +29,7 @@ from pathlib import Path
 
 PIPELINE_FILE = 'resources/sample_pipelines/pipeline_dependency_complex.json'
 
+
 @pytest.fixture
 def processor():
     processor = AirflowPipelineProcessor(os.getcwd())
@@ -116,13 +117,12 @@ def test_pipeline_process(monkeypatch, processor, parsed_pipeline, test_metadata
                               schema_name="airflow",
                               metadata=test_metadata
                               )
-    mocked_pipeline_output_path = "/some-placeholder"
+    mocked_path = "/some-placeholder"
 
     monkeypatch.setattr(processor, "_get_metadata_configuration", lambda namespace, name: mocked_runtime)
-    monkeypatch.setattr(processor, "create_pipeline_file", lambda pipeline,
-                                                           pipeline_export_format,
-                                                           pipeline_export_path,
-                                                           pipeline_name: mocked_pipeline_output_path)
+    monkeypatch.setattr(processor, "create_pipeline_file",
+                        lambda pipeline, pipeline_export_format, pipeline_export_path, pipeline_name: mocked_path)
+
     monkeypatch.setattr(github.Github, "get_repo", lambda x, y: True)
     monkeypatch.setattr(git.GithubClient, "upload_dag", lambda x, y, z: True)
 
@@ -168,17 +168,15 @@ def test_create_file(monkeypatch, processor, parsed_pipeline, parsed_ordered_dic
 
 def test_export_overwrite(monkeypatch, processor, parsed_pipeline):
     with tempfile.TemporaryDirectory() as temp_dir:
-        export_pipeline_output_path = os.path.join(temp_dir, 'some-name.py')
-        Path(export_pipeline_output_path).touch()
-        assert os.path.isfile(export_pipeline_output_path)
+        mocked_path = os.path.join(temp_dir, 'some-name.py')
+        Path(mocked_path).touch()
+        assert os.path.isfile(mocked_path)
 
-        monkeypatch.setattr(processor, "create_pipeline_file", lambda pipeline,
-                                                                      pipeline_export_format,
-                                                                      pipeline_export_path,
-                                                                      pipeline_name: export_pipeline_output_path)
+        monkeypatch.setattr(processor, "create_pipeline_file",
+                            lambda pipeline, pipeline_export_format, pipeline_export_path, pipeline_name: mocked_path)
 
-        returned_path = processor.export(parsed_pipeline, "py", export_pipeline_output_path, True)
-        assert returned_path == export_pipeline_output_path
+        returned_path = processor.export(parsed_pipeline, "py", mocked_path, True)
+        assert returned_path == mocked_path
 
 
 def test_fail_export_overwrite(processor, parsed_pipeline):
