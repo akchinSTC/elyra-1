@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-// import { NotebookParser } from '@elyra/services';
+// import { FileParser } from '@elyra/services';
 import { RequestErrors, showFormDialog } from '@elyra/ui-components';
 import { LabShell } from '@jupyterlab/application';
 import { Dialog, showDialog, ToolbarButton } from '@jupyterlab/apputils';
@@ -64,7 +64,7 @@ export class SubmitScriptButtonExtension
     /*
     // TODO: 
     // get environment variables from the editor
-    // Rename NotebookParser to ContentParser in from '@elyra/services and adjust getEnvVars according to widget type
+    // Rename FileParser to ContentParser in from '@elyra/services and adjust getEnvVars according to widget type
     */
     // const env = this.getEnvVars(this.editor.context.model.toString());
     const env: string[] = [];
