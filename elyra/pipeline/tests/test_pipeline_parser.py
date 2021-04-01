@@ -13,6 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+import os
 import pytest
 
 from elyra.pipeline import PipelineParser, Operation
@@ -257,3 +258,11 @@ def test_scrub_list_function():
     env_variables_output = ['FOO=Bar', 'BAR=Foo']
 
     assert PipelineParser()._scrub_list(env_variables_input) == env_variables_output
+
+
+def test_python_script_submit_button():
+    pipeline_definitions = _read_pipeline_resource('resources/sample_pipelines/pipeline_valid_submit_button.json')
+    filename = pipeline_definitions['pipelines'][0]['nodes'][0]['app_data']['filename']
+    pipeline = PipelineParser().parse(pipeline_definitions)
+
+    assert pipeline.operations['{{uuid}}'].name == os.path.basename(filename).split('.')[0]
