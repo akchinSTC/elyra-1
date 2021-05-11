@@ -194,15 +194,15 @@ const extension: JupyterFrontEndPlugin<void> = {
       launcher.add({
         command: commandIDs.createNewRFile,
         category: 'Elyra',
-        rank: 3
+        rank: 5
       });
     }
 
     if (menu) {
       // Add new r file creation to the file menu
       menu.fileMenu.newMenu.addGroup(
-        [{ command: commandIDs.createNewRFile }],
-        31
+        [{ command: commandIDs.createNewRFile, args: { isMenu: true } }],
+        34
       );
     }
 
@@ -224,7 +224,12 @@ const extension: JupyterFrontEndPlugin<void> = {
 
     // Add a command to create new R file
     app.commands.addCommand(commandIDs.createNewRFile, {
-      label: args => (args['isPalette'] ? 'New R Editor' : 'R Editor'),
+      label: args =>
+        args['isPalette']
+          ? 'New R Editor'
+          : args.isMenu
+          ? 'R File'
+          : 'R Editor',
       caption: 'Create a new R file',
       icon: args => (args['isPalette'] ? undefined : rIcon),
       execute: args => {

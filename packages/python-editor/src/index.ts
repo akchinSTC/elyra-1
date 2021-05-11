@@ -194,14 +194,14 @@ const extension: JupyterFrontEndPlugin<void> = {
       launcher.add({
         command: commandIDs.createNewPythonFile,
         category: 'Elyra',
-        rank: 2
+        rank: 4
       });
     }
 
     if (menu) {
       // Add new python file creation to the file menu
       menu.fileMenu.newMenu.addGroup(
-        [{ command: commandIDs.createNewPythonFile }],
+        [{ command: commandIDs.createNewPythonFile, args: { isMenu: true } }],
         30
       );
     }
@@ -225,7 +225,11 @@ const extension: JupyterFrontEndPlugin<void> = {
     // Add a command to create new Python file
     app.commands.addCommand(commandIDs.createNewPythonFile, {
       label: args =>
-        args['isPalette'] ? 'New Python Editor' : 'Python Editor',
+        args['isPalette']
+          ? 'New Python Editor'
+          : args.isMenu
+          ? 'Python File'
+          : 'Python Editor',
       caption: 'Create a new Python file',
       icon: args => (args['isPalette'] ? undefined : pyIcon),
       execute: args => {
