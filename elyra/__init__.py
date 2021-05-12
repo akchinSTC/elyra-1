@@ -29,6 +29,7 @@ from elyra.pipeline.handlers import PipelineComponentPropertiesHandler
 from elyra.pipeline.handlers import PipelineExportHandler
 from elyra.pipeline.handlers import PipelineProcessorManager
 from elyra.pipeline.handlers import PipelineSchedulerHandler
+from elyra.pipeline.handlers import PipelineValidationHandler
 
 namespace_regex = r"(?P<namespace>[\w\.\-]+)"
 resource_regex = r"(?P<resource>[\w\.\-]+)"
@@ -64,13 +65,14 @@ def _load_jupyter_server_extension(nb_server_app):
                        (processor_regex, component_regex)), PipelineComponentPropertiesHandler),
         (url_path_join(web_app.settings['base_url'], r'/elyra/contents/properties/%s' % (path_regex)),
          ContentHandler),
-
+        (url_path_join(web_app.settings['base_url'], r'/elyra/pipeline/validate'), PipelineValidationHandler),
     ])
     # Instantiate singletons with appropriate parent to enable configurability, and convey
     # root_dir to PipelineProcessorManager.
     PipelineProcessorManager.instance(root_dir=web_app.settings['server_root_dir'], parent=nb_server_app)
     FileMetadataCache.instance(parent=nb_server_app)
     SchemaManager.instance(parent=nb_server_app)
+
 
 
 # For backward compatibility
