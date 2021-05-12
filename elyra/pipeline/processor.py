@@ -44,11 +44,14 @@ class PipelineProcessorRegistry(SingletonConfigurable):
         self.log.debug('Registering processor {}'.format(processor.type))
         self._processors[processor.type] = processor
 
-    def get_processor(self, processor_type):
-        if processor_type in self._processors.keys():
+    def get_processor(self, processor_type: str):
+        if self.is_valid_processor(processor_type):
             return self._processors[processor_type]
         else:
             return None
+
+    def is_valid_processor(self, processor_type: str) -> bool:
+        return processor_type in self._processors.keys()
 
 
 class PipelineProcessorManager(SingletonConfigurable):
@@ -69,6 +72,9 @@ class PipelineProcessorManager(SingletonConfigurable):
             except Exception as err:
                 # log and ignore initialization errors
                 self.log.error('Error registering processor "{}" - {}'.format(processor, err))
+
+    def is_supported_runtime(self, processor_type: str) -> bool:
+        return self._registry.is_valid_processor(processor_type)
 
     def _get_processor_for_runtime(self, processor_type: str):
         processor = self._registry.get_processor(processor_type)

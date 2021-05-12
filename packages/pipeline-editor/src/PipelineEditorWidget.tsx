@@ -70,6 +70,7 @@ export const commandIDs = {
   openMetadata: 'elyra-metadata:open',
   openDocManager: 'docmanager:open',
   newDocManager: 'docmanager:new-untitled',
+  saveDocManager: 'docmanager:save',
   submitScript: 'script-editor:submit',
   submitNotebook: 'notebook:submit',
   addFileToPipeline: 'pipeline-editor:add-node'
@@ -134,14 +135,40 @@ const PipelineWrapper: React.FC<IProps> = ({
     const currentContext = contextRef.current;
 
     const changeHandler = (): void => {
-      const pipeline = currentContext.model.toJSON();
-      setPipeline(pipeline);
+      const pipelineJson: any = currentContext.model.toJSON();
+      if (pipelineJson?.pipelines?.[0]?.nodes) {
+        // Update to display actual value of runtime image
+        for (const node of pipelineJson?.pipelines?.[0]?.nodes) {
+          const app_data = node?.app_data;
+          if (app_data?.runtime_image) {
+            if (runtimeImages.current?.[app_data.runtime_image]) {
+              app_data.runtime_image =
+                runtimeImages.current?.[app_data.runtime_image];
+            }
+          }
+        }
+      }
+      setPipeline(pipelineJson);
       setLoading(false);
     };
 
     currentContext.model.contentChanged.connect(changeHandler);
 
     currentContext.ready.then(changeHandler);
+
+    PipelineService.getRuntimeImages()
+      .then((images: any) => {
+        runtimeImages.current = images;
+        const nodesCopy = JSON.parse(JSON.stringify(nodes));
+        for (const node of nodesCopy) {
+          node.properties.uihints.parameter_info[1].data.items = Object.values(
+            runtimeImages.current
+          );
+        }
+        setUpdatedNodes(nodesCopy);
+        changeHandler();
+      })
+      .catch(error => RequestErrors.serverError(error));
 
     return (): void => {
       currentContext.model.contentChanged.disconnect(changeHandler);
@@ -150,6 +177,19 @@ const PipelineWrapper: React.FC<IProps> = ({
 
   const onChange = useCallback((pipelineJson: any): void => {
     if (contextRef.current.isReady) {
+      if (pipelineJson?.pipelines?.[0]?.nodes) {
+        // Update to store tag of runtime image
+        for (const node of pipelineJson?.pipelines?.[0]?.nodes) {
+          const app_data = node?.app_data;
+          if (app_data?.runtime_image) {
+            for (const tag in runtimeImages.current) {
+              if (runtimeImages.current?.[tag] === app_data?.runtime_image) {
+                app_data.runtime_image = tag;
+              }
+            }
+          }
+        }
+      }
       contextRef.current.model.fromString(
         JSON.stringify(pipelineJson, null, 2)
       );
@@ -168,27 +208,7 @@ const PipelineWrapper: React.FC<IProps> = ({
     });
   };
 
-  useEffect(() => {
-    PipelineService.getRuntimeImages()
-      .then((runtimeImages: any) => {
-        const nodesCopy = JSON.parse(JSON.stringify(nodes));
-        for (const node of nodesCopy) {
-          const imageEnum = [];
-          for (const runtimeImage in runtimeImages) {
-            imageEnum.push(runtimeImages[runtimeImage]);
-            node.properties.resources = {
-              ...node.properties.resources,
-              [`runtime_image.${runtimeImage}.label`]: runtimeImages[
-                runtimeImage
-              ]
-            };
-          }
-          node.properties.uihints.parameter_info[1].data.items = imageEnum;
-        }
-        setUpdatedNodes(nodesCopy);
-      })
-      .catch(error => RequestErrors.serverError(error));
-  }, []);
+  const runtimeImages = React.useRef({});
 
   const onFileRequested = (args: any): Promise<string> => {
     let currentExt = '';
@@ -247,13 +267,14 @@ const PipelineWrapper: React.FC<IProps> = ({
   }, [pipeline?.pipelines]);
 
   const handleExportPipeline = useCallback(async (): Promise<void> => {
+    const pipelineJson: any = context.model.toJSON();
     // prepare pipeline submission details
     // Warn user if the pipeline has invalid nodes
-    if (!pipeline) {
+    if (!pipelineJson) {
       setAlert('Failed export: Cannot export empty pipelines.');
       return;
     }
-    const errorMessages = validate(JSON.stringify(pipeline), nodes);
+    const errorMessages = validate(JSON.stringify(pipelineJson), nodes);
     if (errorMessages && errorMessages.length > 0) {
       let errorMessage = '';
       for (const error of errorMessages) {
@@ -297,10 +318,40 @@ const PipelineWrapper: React.FC<IProps> = ({
       RequestErrors.serverError(error)
     );
 
+    const pipelineRuntime =
+      pipeline?.pipelines?.[0]?.app_data?.ui_data?.runtime;
+    let title = 'Export pipeline';
+    if (pipelineRuntime) {
+      title = `Export pipeline for ${pipelineRuntime.display_name}`;
+      const filteredRuntimeOptions = PipelineService.filterRuntimes(
+        runtimes,
+        pipelineRuntime.name
+      );
+      if (filteredRuntimeOptions.length === 0) {
+        const runtimes = await RequestErrors.noMetadataError(
+          'runtime',
+          'export pipeline.',
+          pipelineRuntime.display_name
+        );
+        if (Utils.isDialogResult(runtimes)) {
+          if (runtimes.button.label.includes(RUNTIMES_NAMESPACE)) {
+            // Open the runtimes widget
+            shell.activateById(`elyra-metadata:${RUNTIMES_NAMESPACE}`);
+          }
+          return;
+        }
+        return;
+      }
+    }
+
     const dialogOptions: Partial<Dialog.IOptions<any>> = {
-      title: 'Export pipeline',
+      title,
       body: formDialogWidget(
-        <PipelineExportDialog runtimes={runtimes} schema={schema} />
+        <PipelineExportDialog
+          runtimes={runtimes}
+          runtime={pipelineRuntime?.name}
+          schema={schema}
+        />
       ),
       buttons: [Dialog.cancelButton(), Dialog.okButton()],
       defaultButton: 1,
@@ -335,35 +386,36 @@ const PipelineWrapper: React.FC<IProps> = ({
     const runtime = PipelineService.getRuntimeName(runtime_config, runtimes);
 
     PipelineService.setNodePathsRelativeToWorkspace(
-      pipeline.pipelines[0],
+      pipelineJson.pipelines[0],
       contextRef.current.path
     );
 
     cleanNullProperties();
 
-    pipeline.pipelines[0].app_data.name = pipeline_name;
-    pipeline.pipelines[0].app_data.runtime = runtime;
-    pipeline.pipelines[0].app_data['runtime-config'] = runtime_config;
-    pipeline.pipelines[0].app_data.source = PathExt.basename(
+    pipelineJson.pipelines[0].app_data.name = pipeline_name;
+    pipelineJson.pipelines[0].app_data.runtime = runtime;
+    pipelineJson.pipelines[0].app_data['runtime-config'] = runtime_config;
+    pipelineJson.pipelines[0].app_data.source = PathExt.basename(
       contextRef.current.path
     );
 
     PipelineService.exportPipeline(
-      pipeline,
+      pipelineJson,
       pipeline_export_format,
       pipeline_export_path,
       overwrite
     ).catch(error => RequestErrors.serverError(error));
 
     PipelineService.setNodePathsRelativeToPipeline(
-      pipeline.pipelines[0],
+      pipelineJson.pipelines[0],
       contextRef.current.path
     );
-  }, [pipeline, cleanNullProperties, shell]);
+  }, [context.model, cleanNullProperties, shell]);
 
   const handleRunPipeline = useCallback(async (): Promise<void> => {
+    const pipelineJson: any = context.model.toJSON();
     // Check that all nodes are valid
-    const errorMessages = validate(JSON.stringify(pipeline), nodes);
+    const errorMessages = validate(JSON.stringify(pipelineJson), nodes);
     if (errorMessages && errorMessages.length > 0) {
       let errorMessage = '';
       for (const error of errorMessages) {
@@ -417,12 +469,39 @@ const PipelineWrapper: React.FC<IProps> = ({
     };
     schema.unshift(JSON.parse(JSON.stringify(localSchema)));
 
+    let title = 'Run pipeline';
+    const pipelineRuntime =
+      pipeline?.pipelines?.[0]?.app_data?.ui_data?.runtime;
+    if (pipelineRuntime) {
+      title = `Run pipeline on ${pipelineRuntime.display_name}`;
+      const filteredRuntimeOptions = PipelineService.filterRuntimes(
+        runtimes,
+        pipelineRuntime.name
+      );
+      if (filteredRuntimeOptions.length === 0) {
+        const runtimes = await RequestErrors.noMetadataError(
+          'runtime',
+          'run pipeline.',
+          pipelineRuntime.display_name
+        );
+        if (Utils.isDialogResult(runtimes)) {
+          if (runtimes.button.label.includes(RUNTIMES_NAMESPACE)) {
+            // Open the runtimes widget
+            shell.activateById(`elyra-metadata:${RUNTIMES_NAMESPACE}`);
+          }
+          return;
+        }
+        return;
+      }
+    }
+
     const dialogOptions: Partial<Dialog.IOptions<any>> = {
-      title: 'Run pipeline',
+      title,
       body: formDialogWidget(
         <PipelineSubmissionDialog
           name={pipelineName}
           runtimes={runtimes}
+          runtime={pipelineRuntime?.name}
           schema={schema}
         />
       ),
@@ -442,22 +521,22 @@ const PipelineWrapper: React.FC<IProps> = ({
       PipelineService.getRuntimeName(runtime_config, runtimes) || 'local';
 
     PipelineService.setNodePathsRelativeToWorkspace(
-      pipeline.pipelines[0],
+      pipelineJson.pipelines[0],
       contextRef.current.path
     );
 
     cleanNullProperties();
 
-    pipeline.pipelines[0]['app_data']['name'] =
+    pipelineJson.pipelines[0]['app_data']['name'] =
       dialogResult.value.pipeline_name;
-    pipeline.pipelines[0]['app_data']['runtime'] = runtime;
-    pipeline.pipelines[0]['app_data']['runtime-config'] = runtime_config;
-    pipeline.pipelines[0]['app_data']['source'] = PathExt.basename(
+    pipelineJson.pipelines[0]['app_data']['runtime'] = runtime;
+    pipelineJson.pipelines[0]['app_data']['runtime-config'] = runtime_config;
+    pipelineJson.pipelines[0]['app_data']['source'] = PathExt.basename(
       contextRef.current.path
     );
 
     PipelineService.submitPipeline(
-      pipeline,
+      pipelineJson,
       PipelineService.getDisplayName(
         dialogResult.value.runtime_config,
         runtimes
@@ -465,10 +544,10 @@ const PipelineWrapper: React.FC<IProps> = ({
     ).catch(error => RequestErrors.serverError(error));
 
     PipelineService.setNodePathsRelativeToPipeline(
-      pipeline.pipelines[0],
+      pipelineJson.pipelines[0],
       contextRef.current.path
     );
-  }, [pipeline, cleanNullProperties]);
+  }, [context.model, cleanNullProperties]);
 
   const handleClearPipeline = useCallback(async (data: any): Promise<any> => {
     return showDialog({
