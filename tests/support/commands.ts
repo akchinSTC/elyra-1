@@ -81,7 +81,8 @@ Cypress.Commands.add('addFileToPipeline', (name: string): void => {
 
 Cypress.Commands.add('openFile', (name: string): void => {
   cy.findByRole('listitem', {
-    name: (n, _el) => n.includes(name)
+    name: (n, _el) => n.includes(name),
+    timeout: 50000
   }).dblclick();
 });
 
@@ -97,4 +98,13 @@ Cypress.Commands.add('resetJupyterLab', (): void => {
   cy.findByRole('tab', { name: /file browser/i, timeout: 25000 }).should(
     'exist'
   );
+});
+
+Cypress.Commands.add('checkTabMenuOptions', (fileType: string): void => {
+  cy.findByRole('tab', { name: /pipeline/i }).rightclick();
+  cy.findAllByRole('menuitem', { name: new RegExp(fileType, 'i') }).should(
+    'exist'
+  );
+  //dismiss menu
+  cy.get('[aria-label="Canvas"]').click({ force: true });
 });

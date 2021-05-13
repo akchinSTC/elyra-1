@@ -42,7 +42,7 @@ describe('Pipeline Editor tests', () => {
     });
   });
 
-  // Test is actually failing
+  // TODO: Fix Test is actually failing
   // it('empty editor should have disabled buttons', () => {
   //   cy.focusPipelineEditor();
 
@@ -73,6 +73,8 @@ describe('Pipeline Editor tests', () => {
 
   it('populated editor should have enabled buttons', () => {
     cy.createPipelineEditor();
+
+    cy.checkTabMenuOptions('Pipeline');
 
     cy.addFileToPipeline('helloworld.ipynb'); // add Notebook
     cy.addFileToPipeline('helloworld.py'); // add Python Script
@@ -152,7 +154,7 @@ describe('Pipeline Editor tests', () => {
     cy.findByRole('button', { name: /save pipeline/i }).click();
 
     // can take a moment to register as saved in ci
-    cy.wait(300);
+    cy.wait(1000);
 
     cy.findByRole('button', { name: /run pipeline/i }).click();
 
