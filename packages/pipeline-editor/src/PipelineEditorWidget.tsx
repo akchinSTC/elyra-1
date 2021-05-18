@@ -26,7 +26,11 @@ import {
   runtimesIcon,
   Dropzone,
   RequestErrors,
-  showFormDialog
+  showFormDialog,
+  pyIcon,
+  rIcon,
+  kubeflowIcon,
+  airflowIcon
 } from '@elyra/ui-components';
 import { ILabShell } from '@jupyterlab/application';
 import { Dialog, ReactWidget, showDialog } from '@jupyterlab/apputils';
@@ -42,6 +46,7 @@ import 'carbon-components/css/carbon-components.min.css';
 
 import { IFileBrowserFactory } from '@jupyterlab/filebrowser';
 
+import { LabIcon, notebookIcon } from '@jupyterlab/ui-components';
 import { toArray } from '@lumino/algorithm';
 import { IDragEvent } from '@lumino/dragdrop';
 import { Signal } from '@lumino/signaling';
@@ -73,6 +78,17 @@ export const commandIDs = {
   submitScript: 'script-editor:submit',
   submitNotebook: 'notebook:submit',
   addFileToPipeline: 'pipeline-editor:add-node'
+};
+
+const runtimeIcons = [kubeflowIcon, airflowIcon];
+
+export const getRuntimeIcon = (runtime?: string): LabIcon => {
+  for (const runtimeIcon of runtimeIcons) {
+    if (`elyra:${runtime}` === runtimeIcon.name) {
+      return runtimeIcon;
+    }
+  }
+  return pipelineIcon;
 };
 
 class PipelineEditorWidget extends ReactWidget {
@@ -113,6 +129,18 @@ interface IProps {
   addFileToPipelineSignal: Signal<PipelineEditorWidget, any>;
   widgetId: string;
 }
+
+const NodeIcons: Map<string, string> = new Map([
+  [
+    'notebooks',
+    'data:image/svg+xml;utf8,' + encodeURIComponent(notebookIcon.svgstr)
+  ],
+  [
+    'python-script',
+    'data:image/svg+xml;utf8,' + encodeURIComponent(pyIcon.svgstr)
+  ],
+  ['r-script', 'data:image/svg+xml;utf8,' + encodeURIComponent(rIcon.svgstr)]
+]);
 
 const PipelineWrapper: React.FC<IProps> = ({
   context,
@@ -169,9 +197,18 @@ const PipelineWrapper: React.FC<IProps> = ({
                   newNodes.push(node);
                   node.label = nodeCategory.label;
                   node.id = nodeCategory.id;
+                  const nodeIcon = NodeIcons.get(nodeCategory.id);
+                  if (!nodeIcon || nodeIcon === '') {
+                    node.image =
+                      'data:image/svg+xml;utf8,' +
+                      encodeURIComponent(
+                        getRuntimeIcon(pipelineRuntime).svgstr
+                      );
+                  } else {
+                    node.image = nodeIcon;
+                  }
                   node.description = nodeCategory.description;
                   node.properties = properties;
-                  console.log(node);
                   node.properties.uihints.parameter_info[1].data = {
                     items: Object.values(runtimeImages.current)
                   };
@@ -189,7 +226,7 @@ const PipelineWrapper: React.FC<IProps> = ({
     loadNodes();
 
     // Trigger a re-load of the nodes if the pipeline runtime changes
-    const maybeLoadNodes = () => {
+    const maybeLoadNodes = (): void => {
       const pipelineJSON: any = currentContext.model.toJSON();
       const pipelineRuntime =
         pipelineJSON?.pipelines?.[0]?.app_data?.ui_data?.runtime.name;
