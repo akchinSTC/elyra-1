@@ -127,9 +127,11 @@ def update_version_to_release() -> None:
         sed(_source('README.md'),
             r"elyra:dev ",
             f"elyra:{new_version} ")
-        sed(_source('README.md'),
-            r"/v[0-9].[0-9].[0-9]?",
-            f"/v{new_version}?")
+        if config.rc is None and config.beta is None:
+            # Update the stable version Binder link
+            sed(_source('README.md'),
+                r"/v[0-9].[0-9].[0-9]?",
+                f"/v{new_version}?")
         sed(_source('etc/docker/kubeflow/README.md'),
             r"kf-notebook:dev",
             f"kf-notebook:{new_version}")
@@ -150,7 +152,7 @@ def update_version_to_release() -> None:
             f"{new_version}")
 
         sed(_source('etc/docker/kubeflow/Dockerfile'),
-            r"elyra==[0-9].[0-9].[0-9]",
+            r"elyra==.*",
             f"elyra=={new_version}")
         sed(_source('etc/docker/elyra/Dockerfile'),
             r"    cd /tmp/elyra && make UPGRADE_STRATEGY=eager install && rm -rf /tmp/elyra",
@@ -226,7 +228,7 @@ def update_version_to_dev() -> None:
             "master")
 
         # for now, this stays with the latest release
-        # sed(_source('etc/docker/kubeflow/Dockerfile'), r"elyra==[0-9].[0-9].[0-9]", f"elyra=={new_version}")
+        # sed(_source('etc/docker/kubeflow/Dockerfile'), r"elyra==.*", f"elyra=={new_version}")
 
         sed(_source('etc/docker/elyra/Dockerfile'),
             rf"\&\& git checkout tags/v{new_version} -b v{new_version} ",
@@ -549,6 +551,7 @@ def initialize_config(args=None) -> SimpleNamespace:
         'new_version': args.version if (not args.rc or not str.isdigit(args.rc)) and (not args.beta or not str.isdigit(args.beta)) else f'{args.version}rc{args.rc}' if args.rc else f'{args.version}b{args.beta}',
         'new_npm_version': args.version if (not args.rc or not str.isdigit(args.rc)) and (not args.beta or not str.isdigit(args.beta)) else f'{args.version}-rc.{args.rc}' if args.rc else f'{args.version}-beta.{args.beta}',
         'rc': args.rc,
+        'beta': args.beta,
         'dev_version': f'{args.dev_version}.dev0',
         'dev_npm_version': f'{args.dev_version}-dev',
         'tag': f'v{args.version}' if (not args.rc or not str.isdigit(args.rc)) and (not args.beta or not str.isdigit(args.beta)) else f'v{args.version}rc{args.rc}' if args.rc else f'v{args.version}b{args.beta}'
@@ -578,6 +581,8 @@ def print_config() -> None:
     print(f'New NPN Version \t -> {config.new_npm_version}')
     if config.rc is not None:
         print(f'RC number \t\t -> {config.rc}')
+    if config.beta is not None:
+        print(f'Beta number \t\t -> {config.beta}')
     print(f'Dev Version \t\t -> {config.dev_version}')
     print(f'Dev NPM Version \t -> {config.dev_npm_version}')
     print(f'Release Tag \t\t -> {config.tag}')
@@ -592,13 +597,16 @@ def print_help() -> str:
     DESCRIPTION
     Creates Elyra release based on git commit hash or from HEAD.
     
+    create release prepare-changelog --version 1.3.0 [--beta 0] [--rc 0]
+    This will prepare the release changelog and make it ready for review on the release workdir.
+
     create-release.py prepare --version 1.3.0 --dev-version 1.4.0 [--beta 0] [--rc 0]
-    This form will prepare a release candidate, build it locally and push the changes to a branch for review.
+    This will prepare a release candidate, build it locally and make it ready for review on the release workdir.
     
     Note: that one can either use a beta or rc modifier for the release, but not both.
 
     create-release.py publish --version 1.3.0 [--beta 0] [--rc 0]
-    This form will build a previously prepared release, and publish the artifacts to public repositories.
+    This will build a previously prepared release, and publish the artifacts to public repositories.
     
     Required software dependencies for building and publishing a release:
      - Git

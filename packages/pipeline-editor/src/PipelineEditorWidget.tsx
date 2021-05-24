@@ -16,6 +16,7 @@
 
 import { PipelineEditor, ThemeProvider } from '@elyra/pipeline-editor';
 import { validate } from '@elyra/pipeline-services';
+import { ContentParser } from '@elyra/services';
 import {
   IconUtil,
   clearPipelineIcon,
@@ -156,6 +157,7 @@ const PipelineWrapper: React.FC<IProps> = ({
   const [panelOpen, setPanelOpen] = React.useState(false);
   const [alert, setAlert] = React.useState(null);
   const [updatedNodes, setUpdatedNodes] = React.useState([]);
+  const pipelineRuntime = pipeline?.pipelines?.[0]?.app_data?.ui_data?.runtime;
 
   const contextRef = useRef(context);
   useEffect(() => {
@@ -308,6 +310,27 @@ const PipelineWrapper: React.FC<IProps> = ({
     });
   };
 
+  const onPropertiesUpdateRequested = async (args: any): Promise<any> => {
+    const path = PipelineService.getWorkspaceRelativeNodePath(
+      contextRef.current.path,
+      args.filename
+    );
+    const new_env_vars = await ContentParser.getEnvVars(
+      path
+    ).then((response: any) => response.map((str: string) => (str = str + '=')));
+
+    const env_vars = args.env_vars ?? [];
+    const merged_env_vars = [
+      ...env_vars,
+      ...new_env_vars.filter(
+        (new_var: string) =>
+          !env_vars.some((old_var: string) => old_var.startsWith(new_var))
+      )
+    ];
+
+    return { env_vars: merged_env_vars.filter(Boolean) };
+  };
+
   const handleOpenFile = (data: any): void => {
     for (let i = 0; i < data.selectedObjectIds.length; i++) {
       const node = pipeline.pipelines[0].nodes.find(
@@ -391,8 +414,6 @@ const PipelineWrapper: React.FC<IProps> = ({
       RequestErrors.serverError(error)
     );
 
-    const pipelineRuntime =
-      pipeline?.pipelines?.[0]?.app_data?.ui_data?.runtime;
     let title = 'Export pipeline';
     if (pipelineRuntime) {
       title = `Export pipeline for ${pipelineRuntime.display_name}`;
@@ -483,7 +504,7 @@ const PipelineWrapper: React.FC<IProps> = ({
       pipelineJson.pipelines[0],
       contextRef.current.path
     );
-  }, [context.model, cleanNullProperties, shell, pipeline?.pipelines]);
+  }, [context.model, pipelineRuntime, cleanNullProperties, shell]);
 
   const handleRunPipeline = useCallback(async (): Promise<void> => {
     const pipelineJson: any = context.model.toJSON();
@@ -543,8 +564,6 @@ const PipelineWrapper: React.FC<IProps> = ({
     schema.unshift(JSON.parse(JSON.stringify(localSchema)));
 
     let title = 'Run pipeline';
-    const pipelineRuntime =
-      pipeline?.pipelines?.[0]?.app_data?.ui_data?.runtime;
     if (pipelineRuntime) {
       title = `Run pipeline on ${pipelineRuntime.display_name}`;
       const filteredRuntimeOptions = PipelineService.filterRuntimes(
@@ -620,7 +639,7 @@ const PipelineWrapper: React.FC<IProps> = ({
       pipelineJson.pipelines[0],
       contextRef.current.path
     );
-  }, [context.model, cleanNullProperties, shell, pipeline?.pipelines]);
+  }, [context.model, pipelineRuntime, cleanNullProperties, shell]);
 
   const handleClearPipeline = useCallback(async (data: any): Promise<any> => {
     return showDialog({
@@ -732,8 +751,23 @@ const PipelineWrapper: React.FC<IProps> = ({
     ],
     rightBar: [
       {
+        action: '',
+        label: `Runtime: ${pipelineRuntime?.display_name ?? 'Generic'}`,
+        incLabelWithIcon: 'before',
+        enable: false,
+        kind: 'tertiary',
+        // TODO: use getRuntimeIcon
+        iconEnabled: IconUtil.encode(
+          pipelineRuntime?.name === 'kfp'
+            ? kubeflowIcon
+            : pipelineRuntime?.name === 'airflow'
+            ? airflowIcon
+            : pipelineIcon
+        )
+      },
+      {
         action: 'toggleOpenPanel',
-        label: 'Open panel',
+        label: panelOpen ? 'Close Panel' : 'Open Panel',
         enable: true,
         iconTypeOverride: panelOpen ? 'paletteOpen' : 'paletteClose'
       }
@@ -857,6 +891,7 @@ const PipelineWrapper: React.FC<IProps> = ({
           onDoubleClickNode={handleOpenFile}
           onError={onError}
           onFileRequested={onFileRequested}
+          onPropertiesUpdateRequested={onPropertiesUpdateRequested}
         />
       </Dropzone>
     </ThemeProvider>
