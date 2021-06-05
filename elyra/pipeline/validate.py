@@ -20,6 +20,7 @@ import networkx as nx
 
 from elyra.pipeline.parser import PipelineParser
 from elyra.pipeline.processor import PipelineProcessorManager
+from elyra.pipeline.registry import ComponentRegistry
 from enum import IntEnum
 from json.decoder import JSONDecodeError
 
@@ -114,9 +115,9 @@ class PipelineValidationManager(SingletonConfigurable):
         self._validate_pipeline_structure(pipeline=pipeline, response=response)
         await self._validate_compatibility(pipeline=pipeline, response=response,
                                            pipeline_runtime=pipeline_runtime, pipeline_execution=pipeline_execution)
-        self._validate_node_properties(root_dir=root_dir, pipeline=pipeline,
-                                       response=response, pipeline_runtime=pipeline_runtime,
-                                       pipeline_execution=pipeline_execution)
+        await self._validate_node_properties(root_dir=root_dir, pipeline=pipeline,
+                                             response=response, pipeline_runtime=pipeline_runtime,
+                                             pipeline_execution=pipeline_execution)
         self._validate_pipeline_graph(pipeline=pipeline, response=response)
 
         return response
@@ -221,8 +222,8 @@ class PipelineValidationManager(SingletonConfigurable):
                                  data={"pipelineRuntime": pipeline_runtime,
                                        "pipelineID": pipeline_id})
 
-    def _validate_node_properties(self, root_dir: str, pipeline: Dict, pipeline_runtime: str,
-                                  pipeline_execution: str, response: ValidationResponse) -> None:
+    async def _validate_node_properties(self, root_dir: str, pipeline: Dict, pipeline_runtime: str,
+                                        pipeline_execution: str, response: ValidationResponse) -> None:
         """
         Validates each of the node's structure for required fields/properties as well as
         their values
@@ -235,111 +236,48 @@ class PipelineValidationManager(SingletonConfigurable):
 
         for single_pipeline in pipeline_json['pipelines']:
             node_list = single_pipeline['nodes']
-
-            # Validate the values for each of the properties in the node"""
-            # TODO: Validate against more specific node properties in component registry
-
+            pipeline_runtime = 'local' if pipeline_runtime == 'generic' else pipeline_runtime
+            components = await PipelineProcessorManager.instance().get_components(pipeline_runtime)
             for node in node_list:
                 if node['type'] == 'execution_node':
                     node_data = node['app_data']
+                    if node['op'] in ['execute-r-node', 'execute-python-node', 'execute-notebook-node']:
+                        # Validate actual node property values
+                        self._validate_filepath(node_id=node['id'], root_dir=root_dir, property_name='filename',
+                                                filename=node_data['filename'], response=response)
 
-                    # Validate the node structure
-                    node_field_strings = ['filename', 'runtime_image']
+                        # If the running locally, we can skip the resource and image name checks
+                        if pipeline_execution != 'local':
+                            self._validate_container_image_name(node, response=response)
+                            self._validate_resource_value(node, resource_name='cpu', response=response)
+                            self._validate_resource_value(node, resource_name='gpu', response=response)
+                            self._validate_resource_value(node, resource_name='memory', response=response)
+                        if pipeline_runtime == 'kfp' and node_data['filename'] != node_data['ui_data']['label']:
+                            self._validate_ui_data_label(node_id=node['id'], label_name=node_data['ui_data']['label'],
+                                                         response=response)
+                        for dependency in node_data['dependencies']:
+                            self._validate_filepath(node_id=node['id'], root_dir=root_dir, property_name='dependencies',
+                                                    filename=dependency, response=response)
+                        for env_var in node_data['env_vars']:
+                            self._validate_environmental_variables(node_id=node['id'], env_var=env_var,
+                                                                   response=response)
 
-                    for field_string in node_field_strings:
-                        if field_string not in node_data:
+                    # Validate against more specific node properties in component registry
+                    node_data.pop('ui_data')  # remove unwanted/unneeded key
+                    property_list = await self._get_component_properties(pipeline_runtime, components, node['op'])
+                    for node_property in list(property_list.keys()):
+                        if node_property not in list(node_data.keys()):
                             response.add_message(severity=ValidationSeverity.Error,
                                                  message_type="invalidNodeProperty",
                                                  message="Node is missing field",
                                                  data={"nodeID": node['id'],
-                                                       "propertyName": field_string})
-                        elif not isinstance(node_data[field_string], str):
+                                                       "propertyName": node_property})
+                        elif not isinstance(node_data[node_property], type(property_list[node_property])):
                             response.add_message(severity=ValidationSeverity.Error,
                                                  message_type="invalidNodeProperty",
                                                  message="Node field is incorrect type",
                                                  data={"nodeID": node['id'],
-                                                       "propertyName": field_string})
-
-                    node_field_ints = ['cpu', 'gpu', 'memory']
-                    for field_int in node_field_ints:
-                        if field_int not in node_data:
-                            response.add_message(severity=ValidationSeverity.Error,
-                                                 message_type="invalidNodeProperty",
-                                                 message="Node is missing field",
-                                                 data={"nodeID": node['id'],
-                                                       "propertyName": field_int})
-                        elif node_data[field_int] is None:
-                            pass
-                        elif not isinstance(node_data[field_int], int):
-                            response.add_message(severity=ValidationSeverity.Error,
-                                                 message_type="invalidNodeProperty",
-                                                 message="Node field is incorrect type",
-                                                 data={"nodeID": node['id'],
-                                                       "propertyName": field_int,
-                                                       "value": node_data[field_int]})
-
-                    node_field_lists = ['env_vars', 'outputs', 'dependencies']
-                    if 'inputs' in node_data:
-                        node_field_lists.append('inputs')
-
-                    for field_list in node_field_lists:
-                        if field_list not in node_data:
-                            response.add_message(severity=ValidationSeverity.Error,
-                                                 message_type="invalidNodeProperty",
-                                                 message="Node is missing field",
-                                                 data={"nodeID": node['id'],
-                                                       "propertyName": field_list})
-                        elif not isinstance(node_data[field_list], list):
-                            response.add_message(severity=ValidationSeverity.Error,
-                                                 message_type="invalidNodeProperty",
-                                                 message="Node field is incorrect type",
-                                                 data={"nodeID": node['id'],
-                                                       "propertyName": field_list})
-
-                    if 'label' not in node_data['ui_data']:
-                        response.add_message(severity=ValidationSeverity.Error,
-                                             message_type="invalidNodeProperty",
-                                             message="Node is missing field",
-                                             data={"nodeID": node['id'],
-                                                   "propertyName": 'label'})
-                    elif not isinstance(node_data['ui_data']['label'], str):
-                        response.add_message(severity=ValidationSeverity.Error,
-                                             message_type="invalidNodeProperty",
-                                             message="Node field is incorrect type",
-                                             data={"nodeID": node['id'],
-                                                   "propertyName": 'label'})
-
-                    if 'include_subdirectories' not in node_data:
-                        response.add_message(severity=ValidationSeverity.Error,
-                                             message_type="invalidNodeProperty",
-                                             message="Node is missing field",
-                                             data={"nodeID": node['id'],
-                                                   "propertyName": 'label'})
-                    elif not isinstance(node_data['include_subdirectories'], bool):
-                        response.add_message(severity=ValidationSeverity.Error,
-                                             message_type="invalidNodeProperty",
-                                             message="Node field is incorrect type",
-                                             data={"nodeID": node['id'],
-                                                   "propertyName": 'include_subdirectories'})
-
-                    # Validate actual node property values
-                    self._validate_filepath(node_id=node['id'], root_dir=root_dir, property_name='filename',
-                                            filename=node_data['filename'], response=response)
-
-                    # If the running locally, we can skip the resource and image name checks
-                    if pipeline_execution != 'local':
-                        self._validate_container_image_name(node, response=response)
-                        self._validate_resource_value(node, resource_name='cpu', response=response)
-                        self._validate_resource_value(node, resource_name='gpu', response=response)
-                        self._validate_resource_value(node, resource_name='memory', response=response)
-                    if pipeline_runtime == 'kfp' and node_data['filename'] != node_data['ui_data']['label']:
-                        self._validate_ui_data_label(node_id=node['id'], label_name=node_data['ui_data']['label'],
-                                                     response=response)
-                    for dependency in node_data['dependencies']:
-                        self._validate_filepath(node_id=node['id'], root_dir=root_dir, property_name='dependencies',
-                                                filename=dependency, response=response)
-                    for env_var in node_data['env_vars']:
-                        self._validate_environmental_variables(node_id=node['id'], env_var=env_var, response=response)
+                                                       "propertyName": node_property})
 
     def _validate_container_image_name(self, node, response: ValidationResponse) -> None:
         """
@@ -543,3 +481,16 @@ class PipelineValidationManager(SingletonConfigurable):
             for node in node_list:
                 if node['id'] == node_id:
                     return single_pipeline['id']
+
+    async def _get_component_properties(self, pipeline_runtime: str, components: dict, node_op: str) -> Dict:
+        """
+        Retrieve the list of properties associated with the node_op
+        :param components: list of components associated with the pipeline runtime being used e.g. kfp, airflow
+        :param node_op: the node operation e.g. execute-notebook-node
+        :return: a list of property names associated with the node op
+        """
+        for category in components['categories']:
+            if node_op == category['node_types'][0]['op']:
+                properties = ComponentRegistry().get_properties(pipeline_runtime, category['id'])
+                return properties['current_parameters']
+        return {}

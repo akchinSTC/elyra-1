@@ -120,7 +120,7 @@ async def test_invalid_node_op_with_airflow(load_pipeline):
     assert issues[0]['data']['nodeID'] == node_id
 
 
-def test_invalid_node_property_structure(monkeypatch, load_pipeline):
+async def test_invalid_node_property_structure(monkeypatch, load_pipeline):
     pipeline, response = load_pipeline('invalid_node_property_structure.pipeline')
     node_id = 'cc35500d-31c9-454f-8c6c-94acd3e24b5c'
     node_property = 'runtime_image'
@@ -128,13 +128,36 @@ def test_invalid_node_property_structure(monkeypatch, load_pipeline):
 
     monkeypatch.setattr(pvm, "_validate_filepath", lambda node_id, root_dir, property_name, filename, response: True)
 
-    pvm._validate_node_properties(root_dir='',
-                                  pipeline=pipeline,
-                                  response=response,
-                                  pipeline_runtime='generic',
-                                  pipeline_execution='local')
+    await pvm._validate_node_properties(root_dir='',
+                                        pipeline=pipeline,
+                                        response=response,
+                                        pipeline_runtime='generic',
+                                        pipeline_execution='local')
 
     issues = response.to_json().get('issues')
+    assert len(issues) == 1
+    assert issues[0]['severity'] == 1
+    assert issues[0]['type'] == 'invalidNodeProperty'
+    assert issues[0]['data']['propertyName'] == node_property
+    assert issues[0]['data']['nodeID'] == node_id
+
+
+async def test_missing_node_property_for_kubeflow_pipeline(monkeypatch, load_pipeline):
+    pipeline, response = load_pipeline('invalid_node_property_in_kubeflow.pipeline')
+    node_id = '0934a7bc-0f32-4c8a-9d92-e1a5adecc247'
+    node_property = 'model_uid'
+    pvm = PipelineValidationManager()
+
+    monkeypatch.setattr(pvm, "_validate_filepath", lambda node_id, root_dir, property_name, filename, response: True)
+
+    await pvm._validate_node_properties(root_dir='',
+                                        pipeline=pipeline,
+                                        response=response,
+                                        pipeline_runtime='kfp',
+                                        pipeline_execution='')
+
+    issues = response.to_json().get('issues')
+    assert len(issues) == 1
     assert issues[0]['severity'] == 1
     assert issues[0]['type'] == 'invalidNodeProperty'
     assert issues[0]['data']['propertyName'] == node_property
