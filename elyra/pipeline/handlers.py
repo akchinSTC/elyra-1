@@ -49,25 +49,36 @@ class PipelineExportHandler(HttpErrorMixin, APIHandler):
         pipeline_export_path = payload['export_path']
         pipeline_overwrite = payload['overwrite']
 
-        pipeline = PipelineParser(root_dir=self.settings['server_root_dir']).parse(pipeline_definition)
+        root_dir = self.settings['server_root_dir']
+        expanded_path = get_expanded_path(root_dir)
+        response = await PipelineValidationManager().validate(pipeline=pipeline_definition,
+                                                              root_dir=expanded_path)
 
-        pipeline_exported_path = await PipelineProcessorManager.instance().export(
-            pipeline,
-            pipeline_export_format,
-            pipeline_export_path,
-            pipeline_overwrite
-        )
-        json_msg = json.dumps({"export_path": pipeline_export_path})
+        self.log.debug(f"Validation checks completed. Results as follows: {response.to_json()}")
+        json_msg = json.dumps(response.to_json())
 
-        self.set_status(201)
-        self.set_header("Content-Type", 'application/json')
-        location = url_path_join(
-            self.base_url,
-            'api',
-            'contents',
-            pipeline_exported_path
-        )
-        self.set_header('Location', location)
+        if not response.has_fatal:
+            pipeline = PipelineParser(root_dir=root_dir).parse(pipeline_definition)
+
+            pipeline_exported_path = await PipelineProcessorManager.instance().export(
+                pipeline,
+                pipeline_export_format,
+                pipeline_export_path,
+                pipeline_overwrite
+            )
+            json_msg = json.dumps({"export_path": pipeline_export_path})
+
+            self.set_status(201)
+            self.set_header("Content-Type", 'application/json')
+            location = url_path_join(
+                self.base_url,
+                'api',
+                'contents',
+                pipeline_exported_path
+            )
+
+            self.set_header('Location', location)
+
         self.set_header("Content-Type", 'application/json')
         self.finish(json_msg)
 
@@ -92,6 +103,8 @@ class PipelineSchedulerHandler(HttpErrorMixin, APIHandler):
         expanded_path = get_expanded_path(root_dir)
         response = await PipelineValidationManager().validate(pipeline=pipeline_definition,
                                                               root_dir=expanded_path)
+
+        self.log.debug(f"Validation checks completed. Results as follows: {response.to_json()}")
 
         if not response.has_fatal:
             self.log.debug("Processing the pipeline submission and executing request")

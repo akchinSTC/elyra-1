@@ -255,16 +255,18 @@ class PipelineValidationManager(SingletonConfigurable):
                         if pipeline_runtime == 'kfp' and node_data['filename'] != node_data['ui_data']['label']:
                             self._validate_ui_data_label(node_id=node['id'], label_name=node_data['ui_data']['label'],
                                                          response=response)
-                        for dependency in node_data['dependencies']:
-                            self._validate_filepath(node_id=node['id'], root_dir=root_dir, property_name='dependencies',
-                                                    filename=dependency, response=response)
+                        if node_data.get('dependencies'):
+                            for dependency in node_data['dependencies']:
+                                self._validate_filepath(node_id=node['id'], root_dir=root_dir,
+                                                        property_name='dependencies',
+                                                        filename=dependency, response=response)
                         for env_var in node_data['env_vars']:
                             self._validate_environmental_variables(node_id=node['id'], env_var=env_var,
                                                                    response=response)
 
                     # Validate against more specific node properties in component registry
                     node_data.pop('ui_data')  # remove unwanted/unneeded key
-                    property_list = await self._get_component_properties(pipeline_runtime, components, node['op'])
+                    property_list = self._get_component_properties(pipeline_runtime, components, node['op'])
                     for node_property in list(property_list.keys()):
                         if node_property not in list(node_data.keys()):
                             response.add_message(severity=ValidationSeverity.Error,
@@ -301,7 +303,7 @@ class PipelineValidationManager(SingletonConfigurable):
         :param resource_name: the name of the resource e.g. CPU, GPU, Memory
         :return:
         """
-        if node['app_data'][resource_name]:
+        if node['app_data'].get(resource_name):
             try:
                 if int(node['app_data'][resource_name]) <= 0:
                     response.add_message(severity=ValidationSeverity.Error,
@@ -482,7 +484,7 @@ class PipelineValidationManager(SingletonConfigurable):
                 if node['id'] == node_id:
                     return single_pipeline['id']
 
-    async def _get_component_properties(self, pipeline_runtime: str, components: dict, node_op: str) -> Dict:
+    def _get_component_properties(self, pipeline_runtime: str, components: dict, node_op: str) -> Dict:
         """
         Retrieve the list of properties associated with the node_op
         :param components: list of components associated with the pipeline runtime being used e.g. kfp, airflow
