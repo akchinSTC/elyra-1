@@ -260,22 +260,23 @@ class PipelineValidationManager(SingletonConfigurable):
                             self._validate_environmental_variables(node_id=node['id'], env_var=env_var,
                                                                    response=response)
 
-                    # Validate against more specific node properties in component registry
-                    node_data.pop('ui_data')  # remove unwanted/unneeded key
-                    property_list = self._get_component_properties(pipeline_runtime, components, node['op'])
-                    for node_property in list(property_list.keys()):
-                        if node_property not in list(node_data.keys()):
-                            response.add_message(severity=ValidationSeverity.Error,
-                                                 message_type="invalidNodeProperty",
-                                                 message="Node is missing field",
-                                                 data={"nodeID": node['id'],
-                                                       "propertyName": node_property})
-                        elif not isinstance(node_data[node_property], type(property_list[node_property])):
-                            response.add_message(severity=ValidationSeverity.Error,
-                                                 message_type="invalidNodeProperty",
-                                                 message="Node field is incorrect type",
-                                                 data={"nodeID": node['id'],
-                                                       "propertyName": node_property})
+                    else:
+                        # Validate against more specific node properties in component registry
+                        node_data.pop('ui_data')  # remove unwanted/unneeded key
+                        property_list = self._get_component_properties(pipeline_runtime, components, node['op'])
+                        for node_property in list(property_list.keys()):
+                            if node_property not in list(node_data.keys()):
+                                response.add_message(severity=ValidationSeverity.Error,
+                                                     message_type="invalidNodeProperty",
+                                                     message="Node is missing field",
+                                                     data={"nodeID": node['id'],
+                                                           "propertyName": node_property})
+                            elif not isinstance(node_data[node_property], type(property_list[node_property])):
+                                response.add_message(severity=ValidationSeverity.Error,
+                                                     message_type="invalidNodeProperty",
+                                                     message="Node field is incorrect type",
+                                                     data={"nodeID": node['id'],
+                                                           "propertyName": node_property})
 
     def _validate_container_image_name(self, node, response: ValidationResponse) -> None:
         """
@@ -284,9 +285,10 @@ class PipelineValidationManager(SingletonConfigurable):
         :param response: ValidationResponse containing the issue list to be updated
         """
         image_name = node['app_data'].get('runtime_image', '')
+        print(f"image name : {image_name}")
         if not image_name:
             response.add_message(severity=ValidationSeverity.Error,
-                                 message_type="invalidNodePropertyValue",
+                                 message_type="invalidNodeProperty",
                                  message="Node is missing image name",
                                  data={"nodeID": node['id'],
                                        "propertyName": 'runtime_image'})

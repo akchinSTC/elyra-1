@@ -132,7 +132,7 @@ async def test_invalid_node_property_structure(monkeypatch, load_pipeline):
                                         pipeline=pipeline,
                                         response=response,
                                         pipeline_runtime='generic',
-                                        pipeline_execution='local')
+                                        pipeline_execution='kfp')
 
     issues = response.to_json().get('issues')
     assert len(issues) == 1
@@ -175,7 +175,7 @@ def test_invalid_node_property_image_name(load_pipeline):
 
     issues = response.to_json().get('issues')
     assert issues[0]['severity'] == 1
-    assert issues[0]['type'] == 'invalidNodePropertyValue'
+    assert issues[0]['type'] == 'invalidNodeProperty'
     assert issues[0]['data']['propertyName'] == node_property
     assert issues[0]['data']['nodeID'] == node_id
 
