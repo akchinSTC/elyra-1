@@ -22,14 +22,13 @@ from jupyter_server.base.handlers import APIHandler
 from jupyter_server.utils import url_path_join
 from tornado import web
 
-from ..util.path import get_expanded_path
-from .validate import PipelineValidationManager
-
 from elyra.pipeline.component import Component
 from elyra.pipeline.component_registry import ComponentRegistry
 from elyra.pipeline.parser import PipelineParser
 from elyra.pipeline.processor import PipelineProcessorManager
+from elyra.pipeline.validate import PipelineValidationManager
 from elyra.util.http import HttpErrorMixin
+from elyra.util.path import get_expanded_path
 
 
 class PipelineExportHandler(HttpErrorMixin, APIHandler):
@@ -56,8 +55,8 @@ class PipelineExportHandler(HttpErrorMixin, APIHandler):
 
         root_dir = self.settings['server_root_dir']
         expanded_path = get_expanded_path(root_dir)
-        response = await PipelineValidationManager().validate(pipeline=pipeline_definition,
-                                                              root_dir=expanded_path)
+        response = await PipelineValidationManager.instance().validate(pipeline=pipeline_definition,
+                                                                       root_dir=expanded_path)
 
         self.log.debug(f"Validation checks completed. Results as follows: {response.to_json()}")
 
@@ -105,8 +104,8 @@ class PipelineSchedulerHandler(HttpErrorMixin, APIHandler):
 
         root_dir = self.settings['server_root_dir']
         expanded_path = get_expanded_path(root_dir)
-        response = await PipelineValidationManager().validate(pipeline=pipeline_definition,
-                                                              root_dir=expanded_path)
+        response = await PipelineValidationManager.instance().validate(pipeline=pipeline_definition,
+                                                                       root_dir=expanded_path)
 
         self.log.debug(f"Validation checks completed. Results as follows: {response.to_json()}")
 
@@ -184,8 +183,8 @@ class PipelineValidationHandler(HttpErrorMixin, APIHandler):
         pipeline_definition = self.get_json_body()
         self.log.debug("Pipeline payload: %s", pipeline_definition)
 
-        response = await PipelineValidationManager().validate(pipeline=pipeline_definition,
-                                                              root_dir=expanded_path)
+        response = await PipelineValidationManager.instance().validate(pipeline=pipeline_definition,
+                                                                       root_dir=expanded_path)
         json_msg = response.to_json()
 
         self.set_status(200)
