@@ -74,6 +74,5 @@ def _load_jupyter_server_extension(nb_server_app):
     SchemaManager.instance(parent=nb_server_app)
 
 
-
 # For backward compatibility
 load_jupyter_server_extension = _load_jupyter_server_extension
