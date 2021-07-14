@@ -31,7 +31,7 @@ from kubernetes.client.models import V1VolumeMount
 from elyra._version import __version__
 
 """
-The NotebookOp uses a python script to bootstrap the user supplied image with the required dependencies.
+The ExtendedContainerOp uses a python script to bootstrap the user supplied image with the required dependencies.
 In order for the script run properly, the image used, must at a minimum, have the 'curl' utility available
 and have python3
 """
@@ -55,7 +55,7 @@ ELYRA_REQUIREMENTS_URL = os.getenv('ELYRA_REQUIREMENTS_URL', 'https://raw.github
                                                                     branch=ELYRA_GITHUB_BRANCH))
 
 
-class NotebookOp(ContainerOp):
+class ExtendedContainerOp(ContainerOp):
 
     def __init__(self,
                  pipeline_name: str,
@@ -265,20 +265,20 @@ class NotebookOp(ContainerOp):
         # Attach metadata to the pod
         # Node type (a static type for this op)
         self.add_pod_label('elyra/node-type',
-                           NotebookOp._normalize_label_value(
+                           ExtendedContainerOp._normalize_label_value(
                                'notebook-script'))
         # Pipeline name
         self.add_pod_label('elyra/pipeline-name',
-                           NotebookOp._normalize_label_value(self.pipeline_name))
+                           ExtendedContainerOp._normalize_label_value(self.pipeline_name))
         # Pipeline version
         self.add_pod_label('elyra/pipeline-version',
-                           NotebookOp._normalize_label_value(self.pipeline_version))
+                           ExtendedContainerOp._normalize_label_value(self.pipeline_version))
         # Experiment name
         self.add_pod_label('elyra/experiment-name',
-                           NotebookOp._normalize_label_value(self.experiment_name))
+                           ExtendedContainerOp._normalize_label_value(self.experiment_name))
         # Pipeline node name
         self.add_pod_label('elyra/node-name',
-                           NotebookOp._normalize_label_value(kwargs.get('name')))
+                           ExtendedContainerOp._normalize_label_value(kwargs.get('name')))
         # Pipeline node file
         self.add_pod_annotation('elyra/node-file-name',
                                 self.notebook)

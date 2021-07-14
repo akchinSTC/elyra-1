@@ -185,7 +185,7 @@ def test_create_file(monkeypatch, processor, parsed_pipeline, parsed_ordered_dic
         for node in pipeline_json['pipelines'][0]['nodes']:
             for i in range(len(file_as_lines)):
                 # Matches an op with a node ID
-                if "notebook_op_" + node['id'].replace("-", "_") + " = NotebookOp(" in file_as_lines[i]:
+                if "notebook_op_" + node['id'].replace("-", "_") + " = ExtendedContainerOp(" in file_as_lines[i]:
                     sub_list_line_counter = 0
                     # Gets sub-list slice starting where the Notebook Op starts
                     for line in file_as_lines[i + 1:]:

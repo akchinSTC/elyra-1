@@ -2,7 +2,7 @@ from airflow import DAG
 {% if cos_secret %}
 from airflow.kubernetes.secret import Secret
 {% endif %}
-from airflow_notebook.pipeline import NotebookOp
+from airflow_notebook.pipeline import ExtendedContainerOp
 from airflow.utils.dates import days_ago
 
 args = {
@@ -45,7 +45,7 @@ op_{{ operation.id|regex_replace }} = {{ operation.name }}(namespace='{{ namespa
                                                                     {{ param }}={{ value }},
         {% endfor %}
     {% else %}
-op_{{ operation.id|regex_replace }} = NotebookOp(name='{{ operation.notebook|regex_replace }}',
+op_{{ operation.id|regex_replace }} = ExtendedContainerOp(name='{{ operation.notebook|regex_replace }}',
                                                           namespace='{{ namespace }}',
                                                           task_id='{{ operation.notebook|regex_replace }}',
                                                           notebook='{{ operation.filename }}',
