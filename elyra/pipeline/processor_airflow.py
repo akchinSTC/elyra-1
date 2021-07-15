@@ -29,6 +29,7 @@ from jinja2 import Environment
 from jinja2 import PackageLoader
 
 from elyra._version import __version__
+from elyra.airflow.operator import BootscriptBuilder
 from elyra.metadata.manager import MetadataManager
 from elyra.pipeline.component_parser_airflow import AirflowComponentParser
 from elyra.pipeline.pipeline import GenericOperation
@@ -197,24 +198,26 @@ class AirflowPipelineProcessor(RuntimePipelineProcessor):
                             image_instance.metadata.get('pull_policy'):
                         image_pull_policy = image_instance.metadata['pull_policy']
 
-                target_op = {'notebook': operation.name,
-                             'id': operation.id,
-                             'filename': operation.filename,
-                             'runtime_image': operation.runtime_image,
-                             'cos_endpoint': cos_endpoint,
-                             'cos_bucket': cos_bucket,
-                             'cos_directory': cos_directory,
-                             'cos_dependencies_archive': operation_artifact_archive,
-                             'pipeline_outputs': operation.outputs,
-                             'pipeline_inputs': operation.inputs,
-                             'pipeline_envs': pipeline_envs,
-                             'parent_operation_ids': operation.parent_operation_ids,
-                             'image_pull_policy': image_pull_policy,
-                             'cpu_request': operation.cpu,
-                             'mem_request': operation.memory,
-                             'gpu_request': operation.gpu,
-                             'is_generic_operator': True
-                             }
+                bootscript = BootscriptBuilder(filename=operation.filename,
+                                               cos_endpoint=cos_endpoint,
+                                               cos_bucket=cos_bucket,
+                                               cos_directory=cos_directory,
+                                               cos_dependencies_archive=operation_artifact_archive,
+                                               inputs=operation.inputs,
+                                               outputs=operation.outputs)
+
+                target_op  = {'notebook': operation.name,
+                              'id': operation.id,
+                              'argument_list': bootscript.container_cmd,
+                              'runtime_image': operation.runtime_image,
+                              'pipeline_envs': pipeline_envs,
+                              'parent_operation_ids': operation.parent_operation_ids,
+                              'image_pull_policy': image_pull_policy,
+                              'cpu_request': operation.cpu,
+                              'mem_request': operation.memory,
+                              'gpu_request': operation.gpu,
+                              'is_generic_operator': True
+                              }
 
                 target_ops.append(target_op)
 
